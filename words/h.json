@@ -1,0 +1,579 @@
+{
+  "words": [
+    {
+      "word": "happy",
+      "stats": {
+        "pos": [
+          "adjective"
+        ],
+        "vad": {
+          "valence": 0.9,
+          "arousal": 0.7,
+          "dominance": 0.6
+        },
+        "emotion_probs": {
+          "joy": 0.8,
+          "trust": 0.1,
+          "anticipation": 0.05,
+          "surprise": 0.02,
+          "anger": 0.01,
+          "fear": 0.01,
+          "sadness": 0.005,
+          "disgust": 0.005
+        },
+        "sentiment": {
+          "polarity": "positive",
+          "strength": 0.9
+        },
+        "social_axes": {
+          "good_bad": 0.8,
+          "warmth_cold": 0.7,
+          "competence_incompetence": 0.1,
+          "active_passive": 0.6
+        },
+        "toxicity": 0.0,
+        "dynamics": {
+          "negation_flip_probability": 0.0,
+          "sarcasm_flip_probability": 0.0
+        }
+      }
+    },
+    {
+      "word": "hate",
+      "stats": {
+        "pos": [
+          "noun",
+          "verb"
+        ],
+        "vad": {
+          "valence": 0.1,
+          "arousal": 0.85,
+          "dominance": 0.7
+        },
+        "emotion_probs": {
+          "joy": 0.02,
+          "trust": 0.03,
+          "anticipation": 0.15,
+          "surprise": 0.05,
+          "anger": 0.45,
+          "fear": 0.08,
+          "sadness": 0.12,
+          "disgust": 0.1
+        },
+        "sentiment": {
+          "polarity": "negative",
+          "strength": 0.95
+        },
+        "social_axes": {
+          "good_bad": -0.9,
+          "warmth_cold": -0.95,
+          "competence_incompetence": 0.3,
+          "active_passive": 0.8
+        },
+        "toxicity": 0.9,
+        "dynamics": {
+          "negation_flip_probability": 0.4,
+          "sarcasm_flip_probability": 0.6
+        }
+      }
+    },
+    {
+      "word": "havent",
+      "stats": {
+        "pos": [
+          "verb",
+          "contraction"
+        ],
+        "vad": {
+          "valence": 0.3,
+          "arousal": 0.4,
+          "dominance": 0.3
+        },
+        "emotion_probs": {
+          "joy": 0.05,
+          "trust": 0.05,
+          "anticipation": 0.1,
+          "surprise": 0.05,
+          "anger": 0.05,
+          "fear": 0.15,
+          "sadness": 0.45,
+          "disgust": 0.1
+        },
+        "sentiment": {
+          "polarity": "negative",
+          "strength": 0.6
+        },
+        "social_axes": {
+          "good_bad": -0.3,
+          "warmth_cold": -0.2,
+          "competence_incompetence": -0.4,
+          "active_passive": -0.1
+        },
+        "toxicity": 0.1,
+        "dynamics": {
+          "negation_flip_probability": 0.8,
+          "sarcasm_flip_probability": 0.3
+        }
+      }
+    },
+    {
+      "word": "having",
+      "stats": {
+        "pos": [
+          "verb",
+          "gerund"
+        ],
+        "vad": {
+          "valence": 0.7,
+          "arousal": 0.4,
+          "dominance": 0.8
+        },
+        "emotion_probs": {
+          "joy": 0.5,
+          "trust": 0.2,
+          "anticipation": 0.15,
+          "surprise": 0.05,
+          "anger": 0.02,
+          "fear": 0.02,
+          "sadness": 0.03,
+          "disgust": 0.03
+        },
+        "sentiment": {
+          "polarity": "positive",
+          "strength": 0.7
+        },
+        "social_axes": {
+          "good_bad": 0.6,
+          "warmth_cold": 0.3,
+          "competence_incompetence": 0.7,
+          "active_passive": 0.5
+        },
+        "toxicity": 0.0,
+        "dynamics": {
+          "negation_flip_probability": 0.6,
+          "sarcasm_flip_probability": 0.3
+        }
+      }
+    },
+    {
+      "word": "hello",
+      "stats": {
+        "pos": [
+          "interjection"
+        ],
+        "vad": {
+          "valence": 0.7,
+          "arousal": 0.5,
+          "dominance": 0.5
+        },
+        "emotion_probs": {
+          "joy": 0.4,
+          "trust": 0.3,
+          "anticipation": 0.1,
+          "surprise": 0.1,
+          "anger": 0.025,
+          "fear": 0.025,
+          "sadness": 0.025,
+          "disgust": 0.025
+        },
+        "sentiment": {
+          "polarity": "positive",
+          "strength": 0.6
+        },
+        "social_axes": {
+          "good_bad": 0.5,
+          "warmth_cold": 0.8,
+          "competence_incompetence": 0.0,
+          "active_passive": 0.3
+        },
+        "toxicity": 0.0,
+        "dynamics": {
+          "negation_flip_probability": 0.0,
+          "sarcasm_flip_probability": 0.0
+        }
+      }
+    },
+    {
+      "word": "help",
+      "stats": {
+        "pos": [
+          "verb",
+          "noun"
+        ],
+        "vad": {
+          "valence": 0.6,
+          "arousal": 0.6,
+          "dominance": 0.4
+        },
+        "emotion_probs": {
+          "joy": 0.1,
+          "trust": 0.4,
+          "anticipation": 0.2,
+          "surprise": 0.05,
+          "anger": 0.05,
+          "fear": 0.1,
+          "sadness": 0.05,
+          "disgust": 0.05
+        },
+        "sentiment": {
+          "polarity": "positive",
+          "strength": 0.5
+        },
+        "social_axes": {
+          "good_bad": 0.7,
+          "warmth_cold": 0.6,
+          "competence_incompetence": 0.2,
+          "active_passive": 0.7
+        },
+        "toxicity": 0.0,
+        "dynamics": {
+          "negation_flip_probability": 0.1,
+          "sarcasm_flip_probability": 0.0
+        }
+      }
+    },
+    {
+      "word": "honestly",
+      "stats": {
+        "pos": [
+          "adverb"
+        ],
+        "vad": {
+          "valence": 0.7,
+          "arousal": 0.4,
+          "dominance": 0.6
+        },
+        "emotion_probs": {
+          "joy": 0.05,
+          "trust": 0.6,
+          "anticipation": 0.15,
+          "surprise": 0.05,
+          "anger": 0.05,
+          "fear": 0.05,
+          "sadness": 0.025,
+          "disgust": 0.025
+        },
+        "sentiment": {
+          "polarity": "positive",
+          "strength": 0.7
+        },
+        "social_axes": {
+          "good_bad": 0.8,
+          "warmth_cold": 0.6,
+          "competence_incompetence": 0.7,
+          "active_passive": 0.3
+        },
+        "toxicity": 0.0,
+        "dynamics": {
+          "negation_flip_probability": 0.1,
+          "sarcasm_flip_probability": 0.4
+        }
+      }
+    },
+    {
+      "word": "hope",
+      "stats": {
+        "pos": [
+          "noun"
+        ],
+        "vad": {
+          "valence": 0.9,
+          "arousal": 0.7,
+          "dominance": 0.6
+        },
+        "emotion_probs": {
+          "joy": 0.3,
+          "trust": 0.25,
+          "anticipation": 0.35,
+          "surprise": 0.05,
+          "anger": 0.0,
+          "fear": 0.025,
+          "sadness": 0.025,
+          "disgust": 0.0
+        },
+        "sentiment": {
+          "polarity": "positive",
+          "strength": 0.9
+        },
+        "social_axes": {
+          "good_bad": 1.0,
+          "warmth_cold": 0.9,
+          "competence_incompetence": 0.5,
+          "active_passive": 0.7
+        },
+        "toxicity": 0.0,
+        "dynamics": {
+          "negation_flip_probability": 0.8,
+          "sarcasm_flip_probability": 0.3
+        }
+      }
+    },
+    {
+      "word": "hopefully",
+      "stats": {
+        "pos": [
+          "adverb"
+        ],
+        "vad": {
+          "valence": 0.8,
+          "arousal": 0.4,
+          "dominance": 0.3
+        },
+        "emotion_probs": {
+          "joy": 0.1,
+          "trust": 0.2,
+          "anticipation": 0.5,
+          "surprise": 0.05,
+          "anger": 0.05,
+          "fear": 0.05,
+          "sadness": 0.05,
+          "disgust": 0.0
+        },
+        "sentiment": {
+          "polarity": "positive",
+          "strength": 0.7
+        },
+        "social_axes": {
+          "good_bad": 0.6,
+          "warmth_cold": 0.5,
+          "competence_incompetence": -0.2,
+          "active_passive": -0.3
+        },
+        "toxicity": 0.0,
+        "dynamics": {
+          "negation_flip_probability": 0.2,
+          "sarcasm_flip_probability": 0.3
+        }
+      }
+    },
+    {
+      "word": "hoping",
+      "stats": {
+        "pos": [
+          "verb"
+        ],
+        "vad": {
+          "valence": 0.7,
+          "arousal": 0.6,
+          "dominance": 0.3
+        },
+        "emotion_probs": {
+          "anticipation": 0.65,
+          "joy": 0.15,
+          "trust": 0.1,
+          "fear": 0.05,
+          "surprise": 0.02,
+          "sadness": 0.02,
+          "anger": 0.005,
+          "disgust": 0.005
+        },
+        "sentiment": {
+          "polarity": "positive",
+          "strength": 0.7
+        },
+        "social_axes": {
+          "good_bad": 0.6,
+          "warmth_cold": 0.7,
+          "competence_incompetence": -0.2,
+          "active_passive": 0.4
+        },
+        "toxicity": 0.0,
+        "dynamics": {
+          "negation_flip_probability": 0.7,
+          "sarcasm_flip_probability": 0.3
+        }
+      }
+    },
+    {
+      "word": "horrible",
+      "stats": {
+        "pos": [
+          "adjective"
+        ],
+        "vad": {
+          "valence": 0.1,
+          "arousal": 0.7,
+          "dominance": 0.3
+        },
+        "emotion_probs": {
+          "joy": 0.01,
+          "trust": 0.01,
+          "anticipation": 0.05,
+          "surprise": 0.1,
+          "anger": 0.15,
+          "fear": 0.25,
+          "sadness": 0.2,
+          "disgust": 0.23
+        },
+        "sentiment": {
+          "polarity": "negative",
+          "strength": 0.9
+        },
+        "social_axes": {
+          "good_bad": -0.8,
+          "warmth_cold": -0.7,
+          "competence_incompetence": -0.6,
+          "active_passive": 0.3
+        },
+        "toxicity": 0.2,
+        "dynamics": {
+          "negation_flip_probability": 0.1,
+          "sarcasm_flip_probability": 0.3
+        }
+      }
+    },
+    {
+      "word": "hour",
+      "stats": {
+        "pos": [
+          "neutral"
+        ],
+        "vad": {
+          "valence": 0.5,
+          "arousal": 0.5,
+          "dominance": 0.5
+        },
+        "emotion_probs": {
+          "joy": 0.125,
+          "trust": 0.125,
+          "anticipation": 0.125,
+          "surprise": 0.125,
+          "anger": 0.125,
+          "fear": 0.125,
+          "sadness": 0.125,
+          "disgust": 0.125
+        },
+        "sentiment": {
+          "polarity": "neutral",
+          "strength": 0.5
+        },
+        "social_axes": {
+          "good_bad": 0.0,
+          "warmth_cold": 0.0,
+          "competence_incompetence": 0.0,
+          "active_passive": 0.0
+        },
+        "toxicity": 0.0,
+        "dynamics": {
+          "negation_flip_probability": 0.0,
+          "sarcasm_flip_probability": 0.0
+        }
+      }
+    },
+    {
+      "word": "house",
+      "stats": {
+        "pos": [
+          "neutral"
+        ],
+        "vad": {
+          "valence": 0.5,
+          "arousal": 0.5,
+          "dominance": 0.5
+        },
+        "emotion_probs": {
+          "joy": 0.125,
+          "trust": 0.125,
+          "anticipation": 0.125,
+          "surprise": 0.125,
+          "anger": 0.125,
+          "fear": 0.125,
+          "sadness": 0.125,
+          "disgust": 0.125
+        },
+        "sentiment": {
+          "polarity": "neutral",
+          "strength": 0.5
+        },
+        "social_axes": {
+          "good_bad": 0.0,
+          "warmth_cold": 0.0,
+          "competence_incompetence": 0.0,
+          "active_passive": 0.0
+        },
+        "toxicity": 0.0,
+        "dynamics": {
+          "negation_flip_probability": 0.0,
+          "sarcasm_flip_probability": 0.0
+        }
+      }
+    },
+    {
+      "word": "how",
+      "stats": {
+        "pos": [
+          "adverb"
+        ],
+        "vad": {
+          "valence": 0.5,
+          "arousal": 0.5,
+          "dominance": 0.5
+        },
+        "emotion_probs": {
+          "joy": 0.125,
+          "trust": 0.125,
+          "anticipation": 0.125,
+          "surprise": 0.125,
+          "anger": 0.125,
+          "fear": 0.125,
+          "sadness": 0.125,
+          "disgust": 0.125
+        },
+        "sentiment": {
+          "polarity": "neutral",
+          "strength": 0.5
+        },
+        "social_axes": {
+          "good_bad": 0.0,
+          "warmth_cold": 0.0,
+          "competence_incompetence": 0.0,
+          "active_passive": 0.0
+        },
+        "toxicity": 0.0,
+        "dynamics": {
+          "negation_flip_probability": 0.0,
+          "sarcasm_flip_probability": 0.0
+        }
+      }
+    },
+    {
+      "word": "hungry",
+      "stats": {
+        "pos": [
+          "adjective"
+        ],
+        "vad": {
+          "valence": 0.3,
+          "arousal": 0.6,
+          "dominance": 0.4
+        },
+        "emotion_probs": {
+          "joy": 0.05,
+          "trust": 0.05,
+          "anticipation": 0.3,
+          "surprise": 0.05,
+          "anger": 0.2,
+          "fear": 0.15,
+          "sadness": 0.15,
+          "disgust": 0.05
+        },
+        "sentiment": {
+          "polarity": "negative",
+          "strength": 0.6
+        },
+        "social_axes": {
+          "good_bad": -0.3,
+          "warmth_cold": 0.0,
+          "competence_incompetence": -0.2,
+          "active_passive": 0.3
+        },
+        "toxicity": 0.0,
+        "dynamics": {
+          "negation_flip_probability": 0.0,
+          "sarcasm_flip_probability": 0.0
+        }
+      }
+    }
+  ]
+}
+

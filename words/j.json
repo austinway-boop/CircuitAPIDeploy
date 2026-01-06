@@ -1,0 +1,80 @@
+{
+  "words": [
+    {
+      "word": "joy",
+      "stats": {
+        "pos": [
+          "noun"
+        ],
+        "vad": {
+          "valence": 0.9,
+          "arousal": 0.7,
+          "dominance": 0.6
+        },
+        "emotion_probs": {
+          "joy": 0.8,
+          "trust": 0.1,
+          "anticipation": 0.05,
+          "surprise": 0.025,
+          "anger": 0.0,
+          "fear": 0.0,
+          "sadness": 0.0,
+          "disgust": 0.025
+        },
+        "sentiment": {
+          "polarity": "positive",
+          "strength": 0.9
+        },
+        "social_axes": {
+          "good_bad": 0.8,
+          "warmth_cold": 0.9,
+          "competence_incompetence": 0.3,
+          "active_passive": 0.6
+        },
+        "toxicity": 0.0,
+        "dynamics": {
+          "negation_flip_probability": 0.1,
+          "sarcasm_flip_probability": 0.1
+        }
+      }
+    },
+    {
+      "word": "just",
+      "stats": {
+        "pos": [
+          "neutral"
+        ],
+        "vad": {
+          "valence": 0.5,
+          "arousal": 0.5,
+          "dominance": 0.5
+        },
+        "emotion_probs": {
+          "joy": 0.125,
+          "trust": 0.125,
+          "anticipation": 0.125,
+          "surprise": 0.125,
+          "anger": 0.125,
+          "fear": 0.125,
+          "sadness": 0.125,
+          "disgust": 0.125
+        },
+        "sentiment": {
+          "polarity": "neutral",
+          "strength": 0.5
+        },
+        "social_axes": {
+          "good_bad": 0.0,
+          "warmth_cold": 0.0,
+          "competence_incompetence": 0.0,
+          "active_passive": 0.0
+        },
+        "toxicity": 0.0,
+        "dynamics": {
+          "negation_flip_probability": 0.0,
+          "sarcasm_flip_probability": 0.0
+        }
+      }
+    }
+  ]
+}
