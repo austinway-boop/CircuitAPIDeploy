@@ -117,6 +117,7 @@ class EmotionEngine {
             
             if (emotionData) {
                 // Use real emotion data from database
+                console.log(`✓ Word "${cleanWord}" found in database (source: database)`);
                 const dominantEmotion = this.getDominantEmotion(emotionData.emotion_probs);
                 
                 wordAnalyses.push({
@@ -133,6 +134,7 @@ class EmotionEngine {
                 });
             } else {
                 // Word not in database - will need DeepSeek
+                console.log(`✗ Word "${cleanWord}" NOT in database - will process with DeepSeek`);
                 unknownWords.push({
                     word: originalWord,
                     clean_word: cleanWord,
@@ -167,6 +169,8 @@ class EmotionEngine {
                     if (deepseekResult) {
                         deepseekCalls++;
                         
+                        console.log(`🤖 DeepSeek analyzed word: "${unknownWord.clean_word}"`);
+                        
                         // Cache this result
                         this.wordCache.set(unknownWord.clean_word, deepseekResult);
                         
@@ -174,6 +178,9 @@ class EmotionEngine {
                         const saved = await this.saveWordToDatabase(unknownWord.clean_word, deepseekResult);
                         if (saved) {
                             newWordsAdded++;
+                            console.log(`✅ Saved word "${unknownWord.clean_word}" to database`);
+                        } else {
+                            console.error(`❌ Failed to save word "${unknownWord.clean_word}" to database`);
                         }
                         
                         return { word: unknownWord.clean_word, result: deepseekResult };
@@ -407,7 +414,7 @@ Rules:
                 body: JSON.stringify({
                     model: 'deepseek-chat',
                     messages: [{ role: 'user', content: prompt }],
-                    temperature: 0.1,
+                    temperature: 0.0, // CRITICAL: 0 for deterministic results
                     max_tokens: 800
                 })
             });
