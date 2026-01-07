@@ -48,14 +48,14 @@ const validateApiKey = async (req, res, next) => {
     });
   }
   
-  // Validate against dashboard (if DASHBOARD_URL is set)
+  // Validate against dashboard AND report usage
   const dashboardUrl = process.env.DASHBOARD_URL;
   if (dashboardUrl) {
     try {
       const response = await fetch(`${dashboardUrl}/api/api-keys/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey })
+        body: JSON.stringify({ apiKey, incrementUsage: true })
       });
       
       const data = await response.json();
