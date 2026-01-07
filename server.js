@@ -46,8 +46,7 @@ const validateApiKey = (req, res, next) => {
 };
 
 // Load emotion engine
-const EmotionEngine = require('./api/emotion-engine.js');
-const emotionEngine = new EmotionEngine();
+const { emotionEngine } = require('./api/emotion-engine.js');
 
 // Text analysis endpoint
 app.post('/v1/analyze-text', validateApiKey, async (req, res) => {
