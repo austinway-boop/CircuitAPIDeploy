@@ -111,20 +111,26 @@ Click **"Edit"** next to "Environment variables" and add:
 - **Host:** app-59535ad6-9e8f-47d9-aa79-b99f9a3d9ca9-do-user-31625626-0.g.db.ondigitalocean.com
 - **Port:** 25060
 - **Username:** db
-- **Password:** See DigitalOcean database settings
+- **Password:** (see DigitalOcean database settings)
 - **Database:** db
 - **SSL Mode:** require
 
-**Environment Variables for Database:**
-Add these to your app settings (get password from DigitalOcean database dashboard):
+**Environment Variables for Database (REQUIRED!):**
 
 | Key | Value |
 |-----|-------|
-| `DB_HOST` | app-59535ad6-9e8f-47d9-aa79-b99f9a3d9ca9-do-user-31625626-0.g.db.ondigitalocean.com |
-| `DB_PORT` | 25060 |
-| `DB_USER` | db |
-| `DB_PASSWORD` | (get from DigitalOcean database settings - encrypt this!) |
-| `DB_NAME` | db |
+| `DB_HOST` | `app-59535ad6-9e8f-47d9-aa79-b99f9a3d9ca9-do-user-31625626-0.g.db.ondigitalocean.com` |
+| `DB_PORT` | `25060` |
+| `DB_USER` | `db` |
+| `DB_PASSWORD` | (get from DigitalOcean database settings - **ENCRYPT THIS!**) |
+| `DB_NAME` | `db` |
+
+**⚠️ IMPORTANT:** The `DB_PASSWORD` MUST be set or the API will use DeepSeek for every word!
+
+**After setting environment variables**, visit this URL to setup and migrate words:
+```
+https://your-app.ondigitalocean.app/setup-database
+```
 
 **Note:** The database stores both the word emotion data AND API processing logs for analytics.
 
