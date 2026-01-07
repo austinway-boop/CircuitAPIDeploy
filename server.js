@@ -12,8 +12,19 @@ const execAsync = promisify(exec);
 const app = express();
 const upload = multer({ dest: 'uploads/', limits: { fileSize: 50 * 1024 * 1024 } });
 
-// Middleware
-app.use(cors());
+// Middleware with proper CORS
+app.use(cors({
+  origin: [
+    'http://localhost:3001',
+    'http://localhost:3000',
+    'https://dashboard-jjxyp2aji-austinway-8928s-projects.vercel.app',
+    'https://dashboard-giddirva3-austinway-8928s-projects.vercel.app',
+    /\.vercel\.app$/
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '10mb' }));
 
 // API Key validation middleware
