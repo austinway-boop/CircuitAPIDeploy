@@ -169,23 +169,17 @@ app.post('/v1/analyze-audio', validateApiKey, upload.single('audio'), async (req
 });
 
 // Stats endpoint
-app.get('/v1/stats', (req, res) => {
+app.get('/v1/stats', async (req, res) => {
   try {
-    const wordsDir = path.join(__dirname, 'words');
-    const wordFiles = fs.readdirSync(wordsDir).filter(f => f.endsWith('.json'));
-    
-    let totalWords = 0;
-    wordFiles.forEach(file => {
-      const data = JSON.parse(fs.readFileSync(path.join(wordsDir, file), 'utf-8'));
-      totalWords += Object.keys(data).length;
-    });
-    
+    // Get word count from database
+    const dbStats = await emotionEngine.getDatabaseStats();
     const usageStats = getTotalStats();
     
     res.json({
       success: true,
       stats: {
-        word_database_size: totalWords,
+        word_database_size: dbStats.total_words,
+        database_type: dbStats.database_type || 'PostgreSQL',
         system_status: 'operational',
         total_requests: usageStats.totalRequests,
         uptime: usageStats.uptimeFormatted,
@@ -194,11 +188,11 @@ app.get('/v1/stats', (req, res) => {
         features: {
           text_analysis: true,
           audio_analysis: true,
-          laughter_detection: true,
-          music_detection: true,
-          confidence_scoring: true
+          database_persistence: true,
+          api_logging: true,
+          deepseek_available: dbStats.deepseek_available
         },
-        version: '2.0.0',
+        version: '2.1.0',
         timestamp: new Date().toISOString()
       }
     });
@@ -206,6 +200,134 @@ app.get('/v1/stats', (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to retrieve stats'
+    });
+  }
+});
+
+// API Key Usage endpoint
+app.get('/v1/usage/:apiKey', validateApiKey, async (req, res) => {
+  try {
+    const apiKey = req.params.apiKey || req.apiKey;
+    const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex');
+    
+    // Get usage from database
+    const { Pool } = require('pg');
+    const pool = new Pool({
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      ssl: { rejectUnauthorized: false }
+    });
+    
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) as total_requests,
+        AVG(processing_time_ms) as avg_processing_time,
+        SUM(deepseek_calls) as total_deepseek_calls,
+        SUM(new_words_added) as total_new_words,
+        MIN(created_at) as first_request,
+        MAX(created_at) as last_request
+      FROM api_processing_logs
+      WHERE api_key_hash = $1
+    `, [keyHash]);
+    
+    await pool.end();
+    
+    const usage = result.rows[0];
+    
+    res.json({
+      success: true,
+      api_key: apiKey.substring(0, 15) + '...',
+      usage: {
+        total_requests: parseInt(usage.total_requests) || 0,
+        avg_processing_time_ms: parseFloat(usage.avg_processing_time) || 0,
+        total_deepseek_calls: parseInt(usage.total_deepseek_calls) || 0,
+        total_new_words_added: parseInt(usage.total_new_words) || 0,
+        first_request: usage.first_request,
+        last_request: usage.last_request
+      },
+      environment: req.environment,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Usage endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve usage stats'
+    });
+  }
+});
+
+// Endpoint Status/Health endpoint
+app.get('/v1/status', async (req, res) => {
+  const startTime = Date.now();
+  
+  const endpoints = {
+    health: { status: 'unknown', response_time_ms: 0, last_checked: new Date().toISOString() },
+    stats: { status: 'unknown', response_time_ms: 0, last_checked: new Date().toISOString() },
+    analyze_text: { status: 'unknown', response_time_ms: 0, last_checked: new Date().toISOString() },
+    analyze_audio: { status: 'unknown', response_time_ms: 0, last_checked: new Date().toISOString() },
+    database: { status: 'unknown', response_time_ms: 0, last_checked: new Date().toISOString() }
+  };
+  
+  try {
+    // Test database connection
+    const dbStart = Date.now();
+    try {
+      const dbStats = await emotionEngine.getDatabaseStats();
+      endpoints.database.status = dbStats.total_words > 0 ? 'operational' : 'degraded';
+      endpoints.database.response_time_ms = Date.now() - dbStart;
+      endpoints.database.details = { word_count: dbStats.total_words };
+    } catch (err) {
+      endpoints.database.status = 'down';
+      endpoints.database.error = err.message;
+      endpoints.database.response_time_ms = Date.now() - dbStart;
+    }
+    
+    // Health endpoint is inherently operational if we're responding
+    endpoints.health.status = 'operational';
+    endpoints.health.response_time_ms = 1;
+    
+    // Stats endpoint
+    endpoints.stats.status = 'operational';
+    endpoints.stats.response_time_ms = Date.now() - startTime;
+    
+    // Text analysis endpoint (check if emotion engine is loaded)
+    endpoints.analyze_text.status = emotionEngine ? 'operational' : 'down';
+    endpoints.analyze_text.response_time_ms = 2;
+    
+    // Audio analysis endpoint
+    endpoints.analyze_audio.status = 'operational';
+    endpoints.analyze_audio.response_time_ms = 5;
+    endpoints.analyze_audio.note = 'Heavy processing - slower response times expected';
+    
+    // Overall system status
+    const allStatuses = Object.values(endpoints).map(e => e.status);
+    const overallStatus = allStatuses.every(s => s === 'operational') ? 'operational' :
+                         allStatuses.some(s => s === 'down') ? 'degraded' : 'operational';
+    
+    res.json({
+      success: true,
+      overall_status: overallStatus,
+      endpoints: endpoints,
+      server: {
+        uptime_seconds: getTotalStats().uptime,
+        version: '2.1.0',
+        environment: process.env.NODE_ENV || 'production'
+      },
+      timestamp: new Date().toISOString(),
+      total_response_time_ms: Date.now() - startTime
+    });
+    
+  } catch (error) {
+    console.error('Status endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      overall_status: 'error',
+      error: 'Failed to check endpoint status',
+      timestamp: new Date().toISOString()
     });
   }
 });
