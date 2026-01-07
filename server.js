@@ -76,11 +76,18 @@ const validateApiKey = async (req, res, next) => {
   req.apiKey = apiKey;
   req.environment = apiKey.startsWith('sk_live_') ? 'production' : 'development';
   
+  // Track usage
+  const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex');
+  trackKeyUsage(keyHash);
+  
   next();
 };
 
 // Load emotion engine
 const { emotionEngine } = require('./api/emotion-engine.js');
+
+// Load usage tracker
+const { trackKeyUsage, getTotalStats } = require('./key-usage-tracker.js');
 
 // Text analysis endpoint
 app.post('/v1/analyze-text', validateApiKey, async (req, res) => {
@@ -173,11 +180,17 @@ app.get('/v1/stats', (req, res) => {
       totalWords += Object.keys(data).length;
     });
     
+    const usageStats = getTotalStats();
+    
     res.json({
       success: true,
       stats: {
         word_database_size: totalWords,
         system_status: 'operational',
+        total_requests: usageStats.totalRequests,
+        uptime: usageStats.uptimeFormatted,
+        uptime_seconds: usageStats.uptime,
+        server_start_time: usageStats.serverStartTime,
         features: {
           text_analysis: true,
           audio_analysis: true,
