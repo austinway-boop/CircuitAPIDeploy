@@ -1,11 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
-const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
 const { promisify } = require('util');
+const crypto = require('crypto');
 
 const execAsync = promisify(exec);
 
@@ -17,7 +17,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // API Key validation middleware
-const validateApiKey = (req, res, next) => {
+const validateApiKey = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -37,8 +37,31 @@ const validateApiKey = (req, res, next) => {
     });
   }
   
-  // In production, validate against database
-  // For now, accept any properly formatted key
+  // Validate against dashboard (if DASHBOARD_URL is set)
+  const dashboardUrl = process.env.DASHBOARD_URL;
+  if (dashboardUrl) {
+    try {
+      const response = await fetch(`${dashboardUrl}/api/api-keys/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey })
+      });
+      
+      const data = await response.json();
+      
+      if (!data.valid) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid API key'
+        });
+      }
+      
+      req.keyInfo = data;
+    } catch (error) {
+      console.warn('Dashboard validation failed, allowing request:', error.message);
+    }
+  }
+  
   req.apiKey = apiKey;
   req.environment = apiKey.startsWith('sk_live_') ? 'production' : 'development';
   
@@ -179,12 +202,11 @@ app.get('/', (req, res) => {
       stats: 'GET /v1/stats',
       health: 'GET /health'
     },
-    documentation: 'https://circuit-console.vercel.app/app/docs'
+    documentation: 'https://dashboard-giddirva3-austinway-8928s-projects.vercel.app/app/docs'
   });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Circuit API server running on port ${PORT}`);
 });
-
