@@ -337,6 +337,157 @@ app.get('/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
+// Database setup endpoint - run this once to initialize!
+app.get('/setup-database', async (req, res) => {
+  try {
+    const { Pool } = require('pg');
+    const fs = require('fs');
+    const path = require('path');
+    
+    const pool = new Pool({
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT || 25060,
+      user: process.env.DB_USER || 'db',
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME || 'db',
+      ssl: { rejectUnauthorized: false }
+    });
+    
+    const logs = [];
+    logs.push('🚀 Starting database setup...');
+    logs.push(`DB_HOST: ${process.env.DB_HOST || 'NOT SET'}`);
+    logs.push(`DB_PASSWORD set: ${!!process.env.DB_PASSWORD}`);
+    
+    // Test connection
+    try {
+      await pool.query('SELECT 1');
+      logs.push('✅ Database connection successful');
+    } catch (e) {
+      logs.push(`❌ Connection failed: ${e.message}`);
+      return res.json({ success: false, logs });
+    }
+    
+    // Create tables
+    const createTables = `
+      CREATE TABLE IF NOT EXISTS words (
+        id SERIAL PRIMARY KEY,
+        word VARCHAR(255) UNIQUE NOT NULL,
+        pos TEXT[],
+        valence DECIMAL(5,4) DEFAULT 0.5,
+        arousal DECIMAL(5,4) DEFAULT 0.5,
+        dominance DECIMAL(5,4) DEFAULT 0.5,
+        emotion_joy DECIMAL(5,4) DEFAULT 0.125,
+        emotion_trust DECIMAL(5,4) DEFAULT 0.125,
+        emotion_anticipation DECIMAL(5,4) DEFAULT 0.125,
+        emotion_surprise DECIMAL(5,4) DEFAULT 0.125,
+        emotion_anger DECIMAL(5,4) DEFAULT 0.125,
+        emotion_fear DECIMAL(5,4) DEFAULT 0.125,
+        emotion_sadness DECIMAL(5,4) DEFAULT 0.125,
+        emotion_disgust DECIMAL(5,4) DEFAULT 0.125,
+        sentiment_polarity VARCHAR(20) DEFAULT 'neutral',
+        sentiment_strength DECIMAL(5,4) DEFAULT 0.5,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS api_processing_logs (
+        id SERIAL PRIMARY KEY,
+        api_key_hash VARCHAR(64),
+        input_text TEXT,
+        word_count INTEGER,
+        analyzed_words INTEGER,
+        overall_emotion VARCHAR(50),
+        confidence DECIMAL(5,4),
+        emotions JSONB,
+        word_analysis JSONB,
+        vad JSONB,
+        sentiment JSONB,
+        processing_time_ms INTEGER,
+        deepseek_calls INTEGER DEFAULT 0,
+        new_words_added INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
+    
+    await pool.query(createTables);
+    logs.push('✅ Tables created/verified');
+    
+    // Check word count
+    const countResult = await pool.query('SELECT COUNT(*) as count FROM words');
+    const wordCount = parseInt(countResult.rows[0].count);
+    logs.push(`📊 Current word count: ${wordCount}`);
+    
+    // Migrate words if empty
+    if (wordCount === 0) {
+      logs.push('📂 Database empty - starting word migration...');
+      
+      const wordsDir = path.join(__dirname, 'words');
+      if (fs.existsSync(wordsDir)) {
+        const files = fs.readdirSync(wordsDir).filter(f => f.endsWith('.json'));
+        let totalInserted = 0;
+        
+        for (const file of files) {
+          try {
+            const data = JSON.parse(fs.readFileSync(path.join(wordsDir, file), 'utf8'));
+            if (data.words && Array.isArray(data.words)) {
+              for (const entry of data.words) {
+                if (entry.word && entry.stats) {
+                  const s = entry.stats;
+                  try {
+                    await pool.query(`
+                      INSERT INTO words (word, valence, arousal, dominance,
+                        emotion_joy, emotion_trust, emotion_anticipation, emotion_surprise,
+                        emotion_anger, emotion_fear, emotion_sadness, emotion_disgust,
+                        sentiment_polarity, sentiment_strength)
+                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                      ON CONFLICT (word) DO NOTHING
+                    `, [
+                      entry.word,
+                      s.vad?.valence || 0.5, s.vad?.arousal || 0.5, s.vad?.dominance || 0.5,
+                      s.emotion_probs?.joy || 0.125, s.emotion_probs?.trust || 0.125,
+                      s.emotion_probs?.anticipation || 0.125, s.emotion_probs?.surprise || 0.125,
+                      s.emotion_probs?.anger || 0.125, s.emotion_probs?.fear || 0.125,
+                      s.emotion_probs?.sadness || 0.125, s.emotion_probs?.disgust || 0.125,
+                      s.sentiment?.polarity || 'neutral', s.sentiment?.strength || 0.5
+                    ]);
+                    totalInserted++;
+                  } catch (e) {
+                    // Skip duplicates
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            logs.push(`⚠️ Error processing ${file}: ${e.message}`);
+          }
+        }
+        
+        logs.push(`✅ Migrated ${totalInserted} words`);
+      } else {
+        logs.push('⚠️ No words directory found');
+      }
+    }
+    
+    // Final count
+    const finalCount = await pool.query('SELECT COUNT(*) as count FROM words');
+    logs.push(`✅ Final word count: ${finalCount.rows[0].count}`);
+    
+    await pool.end();
+    
+    res.json({ 
+      success: true, 
+      logs,
+      word_count: parseInt(finalCount.rows[0].count)
+    });
+    
+  } catch (error) {
+    res.json({ 
+      success: false, 
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({

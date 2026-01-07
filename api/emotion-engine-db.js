@@ -10,6 +10,8 @@ class EmotionEngine {
         this.deepseekApiKey = process.env.DEEPSEEK_API_KEY;
         this.dbConnected = false;
         this.dbError = null;
+        this.dbWordCount = 0;
+        this.initAttempted = false;
         
         // PostgreSQL connection pool
         this.pool = new Pool({
@@ -21,23 +23,95 @@ class EmotionEngine {
             ssl: { rejectUnauthorized: false },
             max: 20,
             idleTimeoutMillis: 30000,
-            connectionTimeoutMillis: 5000,
+            connectionTimeoutMillis: 10000,
         });
         
-        // Test connection on startup
-        this.testConnection();
+        // Test connection AND auto-setup on startup
+        this.initializeDatabase();
     }
     
-    async testConnection() {
+    async initializeDatabase() {
+        if (this.initAttempted) return;
+        this.initAttempted = true;
+        
+        console.log('🗄️  Initializing database connection...');
+        console.log(`   Host: ${process.env.DB_HOST || 'default'}`);
+        console.log(`   User: ${process.env.DB_USER || 'db'}`);
+        console.log(`   Password set: ${!!process.env.DB_PASSWORD}`);
+        
         try {
+            // Try to create tables (will be skipped if they exist)
+            await this.ensureTablesExist();
+            
+            // Test connection and count words
             const result = await this.pool.query('SELECT COUNT(*) as count FROM words');
             this.dbConnected = true;
             this.dbWordCount = parseInt(result.rows[0].count);
+            this.dbError = null;
             console.log(`✅ Database connected! ${this.dbWordCount} words in database`);
+            
+            if (this.dbWordCount === 0) {
+                console.log('⚠️  Database is empty! Run: npm run migrate-words');
+            }
         } catch (error) {
             this.dbConnected = false;
             this.dbError = error.message;
             console.error(`❌ Database connection FAILED:`, error.message);
+            console.error('   Make sure DB_PASSWORD environment variable is set!');
+        }
+    }
+    
+    async ensureTablesExist() {
+        // Create tables if they don't exist
+        const createWordsTable = `
+            CREATE TABLE IF NOT EXISTS words (
+                id SERIAL PRIMARY KEY,
+                word VARCHAR(255) UNIQUE NOT NULL,
+                pos TEXT[],
+                valence DECIMAL(5,4) NOT NULL DEFAULT 0.5,
+                arousal DECIMAL(5,4) NOT NULL DEFAULT 0.5,
+                dominance DECIMAL(5,4) NOT NULL DEFAULT 0.5,
+                emotion_joy DECIMAL(5,4) NOT NULL DEFAULT 0.125,
+                emotion_trust DECIMAL(5,4) NOT NULL DEFAULT 0.125,
+                emotion_anticipation DECIMAL(5,4) NOT NULL DEFAULT 0.125,
+                emotion_surprise DECIMAL(5,4) NOT NULL DEFAULT 0.125,
+                emotion_anger DECIMAL(5,4) NOT NULL DEFAULT 0.125,
+                emotion_fear DECIMAL(5,4) NOT NULL DEFAULT 0.125,
+                emotion_sadness DECIMAL(5,4) NOT NULL DEFAULT 0.125,
+                emotion_disgust DECIMAL(5,4) NOT NULL DEFAULT 0.125,
+                sentiment_polarity VARCHAR(20) DEFAULT 'neutral',
+                sentiment_strength DECIMAL(5,4) DEFAULT 0.5,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `;
+        
+        const createLogsTable = `
+            CREATE TABLE IF NOT EXISTS api_processing_logs (
+                id SERIAL PRIMARY KEY,
+                api_key_hash VARCHAR(64),
+                input_text TEXT NOT NULL,
+                word_count INTEGER,
+                analyzed_words INTEGER,
+                overall_emotion VARCHAR(50),
+                confidence DECIMAL(5,4),
+                emotions JSONB,
+                word_analysis JSONB,
+                vad JSONB,
+                sentiment JSONB,
+                processing_time_ms INTEGER,
+                deepseek_calls INTEGER DEFAULT 0,
+                new_words_added INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `;
+        
+        try {
+            await this.pool.query(createWordsTable);
+            await this.pool.query(createLogsTable);
+            console.log('   ✅ Database tables verified/created');
+        } catch (error) {
+            console.error('   ⚠️  Could not create tables:', error.message);
         }
     }
     
