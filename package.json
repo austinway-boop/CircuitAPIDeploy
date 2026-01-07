@@ -5,16 +5,18 @@
   "main": "api/analyze-text.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "setup-db": "node setup-database.js",
+    "migrate-words": "node migrate-words-to-db.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
     "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
-    "jsonwebtoken": "^9.0.2"
+    "pg": "^8.16.3"
   },
   "engines": {
     "node": ">=18.x"
   }
 }
-

@@ -21,7 +21,38 @@ git remote add origin https://github.com/your-username/CircuitAPIDeploy.git
 git push -u origin main
 ```
 
-## Step 2: Create App in DigitalOcean
+## Step 2: Setup Database (One-Time)
+
+**Before deploying the app, setup the PostgreSQL database:**
+
+```bash
+cd api-deploy
+
+# Install dependencies
+npm install
+
+# Create database tables
+npm run setup-db
+
+# Migrate existing words from JSON to PostgreSQL
+npm run migrate-words
+```
+
+This will:
+- Create the `words` table for emotion data
+- Create the `api_processing_logs` table for analytics
+- Migrate all existing words from JSON files to PostgreSQL
+
+**Expected output:**
+```
+✅ Connected to PostgreSQL database
+✅ Schema created successfully
+📊 Database contains 0 words
+🚀 Starting word migration...
+✅ Migration complete! Database now contains 5000+ words
+```
+
+## Step 3: Create App in DigitalOcean
 
 1. Go to https://cloud.digitalocean.com/apps
 2. Click **"Create App"**
@@ -32,7 +63,7 @@ git push -u origin main
 7. Enable **"Autodeploy"** (deploys automatically when you push to GitHub)
 8. Click **"Next"**
 
-## Step 3: Configure App Settings
+## Step 4: Configure App Settings
 
 ### Resource Configuration
 
@@ -73,9 +104,31 @@ Click **"Edit"** next to "Environment variables" and add:
 
 ### Database
 
-**Do NOT add a database.** The word emotion database uses JSON files (optimal for read-only data).
+**PostgreSQL Database Required** - The word emotion database uses PostgreSQL for persistence across deployments.
 
-## Step 4: Finalize and Deploy
+**Database Connection Info:**
+- **ID:** 2c69acd5-7c22-41b0-aea2-a943caf2e6b9
+- **Host:** app-59535ad6-9e8f-47d9-aa79-b99f9a3d9ca9-do-user-31625626-0.g.db.ondigitalocean.com
+- **Port:** 25060
+- **Username:** db
+- **Password:** See DigitalOcean database settings
+- **Database:** db
+- **SSL Mode:** require
+
+**Environment Variables for Database:**
+Add these to your app settings (get password from DigitalOcean database dashboard):
+
+| Key | Value |
+|-----|-------|
+| `DB_HOST` | app-59535ad6-9e8f-47d9-aa79-b99f9a3d9ca9-do-user-31625626-0.g.db.ondigitalocean.com |
+| `DB_PORT` | 25060 |
+| `DB_USER` | db |
+| `DB_PASSWORD` | (get from DigitalOcean database settings - encrypt this!) |
+| `DB_NAME` | db |
+
+**Note:** The database stores both the word emotion data AND API processing logs for analytics.
+
+## Step 5: Finalize and Deploy
 
 1. Review all settings
 2. Click **"Next"**
@@ -91,7 +144,7 @@ DigitalOcean will now:
 
 **Deployment takes 3-5 minutes.**
 
-## Step 5: Get Your API URL
+## Step 6: Get Your API URL
 
 After deployment succeeds, find your URL:
 
@@ -101,7 +154,7 @@ After deployment succeeds, find your URL:
 
 **Example:** `https://circuit-68ald.ondigitalocean.app`
 
-## Step 6: Test Your Deployment
+## Step 7: Test Your Deployment
 
 ### Test health endpoint:
 
@@ -142,7 +195,7 @@ curl -X POST https://your-app.ondigitalocean.app/v1/analyze-text \
 curl https://your-app.ondigitalocean.app/v1/stats
 ```
 
-## Step 7: Connect to Dashboard
+## Step 8: Connect to Dashboard
 
 1. Go to your Circuit Console dashboard
 2. Navigate to **API Keys** page

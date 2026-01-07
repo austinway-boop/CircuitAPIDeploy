@@ -83,8 +83,8 @@ const validateApiKey = async (req, res, next) => {
   next();
 };
 
-// Load emotion engine
-const { emotionEngine } = require('./api/emotion-engine.js');
+// Load emotion engine (PostgreSQL version for persistence)
+const { emotionEngine } = require('./api/emotion-engine-db.js');
 
 // Load usage tracker
 const { trackKeyUsage, getTotalStats } = require('./key-usage-tracker.js');
