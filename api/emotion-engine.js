@@ -147,6 +147,10 @@ class EmotionEngine {
                     if (deepseekResult) {
                         // Cache this result for future use
                         this.wordCache.set(unknownWord.clean_word, deepseekResult);
+                        
+                        // Save to disk for persistence
+                        await this.saveWordToFile(unknownWord.clean_word, deepseekResult);
+                        
                         return { word: unknownWord.clean_word, result: deepseekResult };
                     }
                 } catch (error) {
@@ -558,6 +562,86 @@ Rules:
             available_files: this.fileCache.size,
             deepseek_available: !!this.deepseekApiKey
         };
+    }
+    
+    getFilenameForWord(word) {
+        const firstChar = word[0].toLowerCase();
+        if (/[a-z]/.test(firstChar)) {
+            return `${firstChar}.json`;
+        } else if (/\d/.test(firstChar)) {
+            return 'numbers.json';
+        } else {
+            return 'symbols.json';
+        }
+    }
+    
+    async saveWordToFile(word, emotionData) {
+        try {
+            const filename = this.getFilenameForWord(word);
+            const filepath = path.join(this.wordsDir, filename);
+            
+            // Read existing data
+            let data = { words: [] };
+            if (fs.existsSync(filepath)) {
+                try {
+                    const fileContent = fs.readFileSync(filepath, 'utf8');
+                    data = JSON.parse(fileContent);
+                } catch (readError) {
+                    console.warn(`Error reading ${filename}, creating new file:`, readError.message);
+                }
+            }
+            
+            // Check if word already exists
+            const existingIndex = data.words.findIndex(entry => 
+                entry.word && entry.word.toLowerCase() === word.toLowerCase()
+            );
+            
+            if (existingIndex !== -1) {
+                // Word already exists, skip
+                console.log(`Word "${word}" already exists in database`);
+                return true;
+            }
+            
+            // Add new word with full structure matching the database format
+            const newWordEntry = {
+                word: word,
+                stats: {
+                    pos: ["noun"], // Default part of speech
+                    vad: emotionData.vad || { valence: 0.5, arousal: 0.5, dominance: 0.5 },
+                    emotion_probs: emotionData.emotion_probs,
+                    sentiment: emotionData.sentiment || { polarity: "neutral", strength: 0.5 },
+                    social_axes: {
+                        good_bad: 0.0,
+                        warmth_cold: 0.0,
+                        competence_incompetence: 0.0,
+                        active_passive: 0.0
+                    },
+                    toxicity: 0.0,
+                    dynamics: {
+                        negation_flip_probability: 0.0,
+                        sarcasm_flip_probability: 0.0
+                    }
+                }
+            };
+            
+            data.words.push(newWordEntry);
+            
+            // Sort words alphabetically
+            data.words.sort((a, b) => {
+                const wordA = (a.word || '').toLowerCase();
+                const wordB = (b.word || '').toLowerCase();
+                return wordA.localeCompare(wordB);
+            });
+            
+            // Write back to file
+            fs.writeFileSync(filepath, JSON.stringify(data, null, 2), 'utf8');
+            console.log(`✅ Saved word "${word}" to ${filename}`);
+            
+            return true;
+        } catch (error) {
+            console.error(`Error saving word "${word}" to file:`, error.message);
+            return false;
+        }
     }
 }
 
