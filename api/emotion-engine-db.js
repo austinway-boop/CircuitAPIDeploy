@@ -168,30 +168,13 @@ class EmotionEngine {
     
     async analyzeText(text) {
         const startTime = Date.now();
-        const debugLog = [];
-        
-        // Debug: Database status
-        debugLog.push(`Database connected: ${this.dbConnected}`);
-        if (this.dbError) debugLog.push(`Database error: ${this.dbError}`);
-        debugLog.push(`DeepSeek API key: ${this.deepseekApiKey ? 'SET' : 'NOT SET'}`);
-        
-        // Check DB word count
-        try {
-            const countResult = await this.pool.query('SELECT COUNT(*) as count FROM words');
-            debugLog.push(`Words in database: ${countResult.rows[0].count}`);
-        } catch (e) {
-            debugLog.push(`Failed to count words: ${e.message}`);
-        }
         
         const words = text.toLowerCase().split(/\s+/);
         const cleanWords = words.map(word => word.replace(/[^a-zA-Z0-9]/g, ''));
         
         const wordAnalyses = [];
         const unknownWords = [];
-        let wordsFromDatabase = 0;
-        let wordsFromCache = 0;
         let wordsFromDeepSeek = 0;
-        let wordsNotFound = 0;
         
         // Analyze each word
         for (let i = 0; i < cleanWords.length; i++) {
@@ -203,14 +186,6 @@ class EmotionEngine {
             const { data: emotionData, source, error } = await this.getWordData(cleanWord);
             
             if (emotionData) {
-                if (source === 'memory_cache') {
-                    wordsFromCache++;
-                    debugLog.push(`✓ "${cleanWord}" from MEMORY CACHE`);
-                } else {
-                    wordsFromDatabase++;
-                    debugLog.push(`✓ "${cleanWord}" from DATABASE`);
-                }
-                
                 const dominantEmotion = this.getDominantEmotion(emotionData.emotion_probs);
                 
                 wordAnalyses.push({
@@ -226,9 +201,6 @@ class EmotionEngine {
                     emotion_probs: emotionData.emotion_probs
                 });
             } else {
-                wordsNotFound++;
-                debugLog.push(`✗ "${cleanWord}" NOT FOUND (${source}${error ? ': ' + error : ''})`);
-                
                 unknownWords.push({
                     word: originalWord,
                     clean_word: cleanWord,
@@ -251,29 +223,21 @@ class EmotionEngine {
         
         // Process unknown words with DeepSeek
         if (unknownWords.length > 0 && this.deepseekApiKey) {
-            debugLog.push(`Processing ${unknownWords.length} unknown words with DeepSeek...`);
-            
             const emotionalWords = unknownWords.filter(w => this.isEmotionallySignificant(w.clean_word));
             const wordsToProcess = emotionalWords.length > 0 ? emotionalWords : unknownWords.slice(0, 1);
             
             for (const unknownWord of wordsToProcess.slice(0, 3)) {
                 try {
-                    debugLog.push(`🤖 Calling DeepSeek for "${unknownWord.clean_word}"...`);
                     const deepseekResult = await this.analyzeWordWithDeepSeek(unknownWord.clean_word);
                     
                     if (deepseekResult) {
                         wordsFromDeepSeek++;
-                        debugLog.push(`✓ DeepSeek returned data for "${unknownWord.clean_word}"`);
                         
                         // Cache it
                         this.wordCache.set(unknownWord.clean_word, deepseekResult);
                         
                         // Save to database
-                        const saved = await this.saveWordToDatabase(unknownWord.clean_word, deepseekResult);
-                        debugLog.push(saved ? 
-                            `✓ Saved "${unknownWord.clean_word}" to database` :
-                            `✗ FAILED to save "${unknownWord.clean_word}" to database`
-                        );
+                        await this.saveWordToDatabase(unknownWord.clean_word, deepseekResult);
                         
                         // Update word analysis
                         const wordIndex = wordAnalyses.findIndex(w => w.clean_word === unknownWord.clean_word);
@@ -291,34 +255,16 @@ class EmotionEngine {
                                 emotion_probs: deepseekResult.emotion_probs
                             };
                         }
-                    } else {
-                        debugLog.push(`✗ DeepSeek returned NO DATA for "${unknownWord.clean_word}"`);
                     }
                 } catch (error) {
-                    debugLog.push(`✗ DeepSeek ERROR for "${unknownWord.clean_word}": ${error.message}`);
+                    // Silent fail for individual words
                 }
             }
-        } else if (unknownWords.length > 0) {
-            debugLog.push(`⚠ ${unknownWords.length} unknown words but no DeepSeek API key!`);
         }
         
         // Calculate result
         const result = this.calculateOverallEmotion(wordAnalyses, text);
         const processingTime = Date.now() - startTime;
-        
-        // Add debug info to result
-        result.debug = {
-            database_connected: this.dbConnected,
-            database_error: this.dbError,
-            deepseek_available: !!this.deepseekApiKey,
-            words_from_database: wordsFromDatabase,
-            words_from_cache: wordsFromCache,
-            words_from_deepseek: wordsFromDeepSeek,
-            words_not_found: wordsNotFound,
-            total_words_processed: cleanWords.filter(w => w.length > 0).length,
-            processing_time_ms: processingTime,
-            log: debugLog
-        };
         
         // Log to database (async)
         this.logProcessing(text, result, processingTime, wordsFromDeepSeek, wordsFromDeepSeek).catch(() => {});
