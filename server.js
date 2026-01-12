@@ -426,79 +426,102 @@ app.get('/setup-database', async (req, res) => {
     await pool.query(createCoreTables);
     logs.push('✅ Core tables created/verified');
     
-    // Create session/profiling tables
-    const createSessionTables = `
-      CREATE TABLE IF NOT EXISTS organizations (
-        id VARCHAR(50) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        slug VARCHAR(100) UNIQUE NOT NULL,
-        api_key_hash VARCHAR(64),
-        settings JSONB DEFAULT '{}',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-      
-      CREATE TABLE IF NOT EXISTS profiles (
-        id VARCHAR(50) PRIMARY KEY,
-        org_id VARCHAR(50) NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-        username VARCHAR(100) NOT NULL,
-        display_name VARCHAR(255),
-        email VARCHAR(255),
-        avatar_url TEXT,
-        metadata JSONB DEFAULT '{}',
-        total_sessions INTEGER DEFAULT 0,
-        total_messages INTEGER DEFAULT 0,
-        avg_valence DECIMAL(5,4) DEFAULT 0.5,
-        avg_arousal DECIMAL(5,4) DEFAULT 0.5,
-        dominant_emotion VARCHAR(50) DEFAULT 'neutral',
-        emotion_history JSONB DEFAULT '[]',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(org_id, username)
-      );
-      
-      CREATE TABLE IF NOT EXISTS sessions (
-        id VARCHAR(50) PRIMARY KEY,
-        org_id VARCHAR(50) NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-        profile_id VARCHAR(50) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-        status VARCHAR(20) DEFAULT 'active',
-        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        ended_at TIMESTAMP,
-        duration_seconds INTEGER,
-        message_count INTEGER DEFAULT 0,
-        overall_mood VARCHAR(50),
-        mood_confidence DECIMAL(5,4),
-        emotion_breakdown JSONB DEFAULT '{}',
-        avg_valence DECIMAL(5,4),
-        avg_arousal DECIMAL(5,4),
-        avg_dominance DECIMAL(5,4),
-        sentiment_trend VARCHAR(20),
-        metadata JSONB DEFAULT '{}',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-      
-      CREATE TABLE IF NOT EXISTS session_messages (
-        id VARCHAR(50) PRIMARY KEY,
-        session_id VARCHAR(50) NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-        message_type VARCHAR(20) NOT NULL,
-        content TEXT,
-        audio_url TEXT,
-        transcription TEXT,
-        overall_emotion VARCHAR(50),
-        confidence DECIMAL(5,4),
-        emotions JSONB,
-        vad JSONB,
-        sentiment JSONB,
-        word_count INTEGER,
-        analyzed_words INTEGER,
-        processing_time_ms INTEGER,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
+    // Create session/profiling tables - one at a time for better error handling
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS organizations (
+          id VARCHAR(50) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          slug VARCHAR(100) UNIQUE NOT NULL,
+          api_key_hash VARCHAR(64),
+          settings JSONB DEFAULT '{}',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      logs.push('✅ organizations table created/verified');
+    } catch (e) {
+      logs.push(`⚠️ organizations table: ${e.message}`);
+    }
     
-    await pool.query(createSessionTables);
-    logs.push('✅ Session/profiling tables created/verified');
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS profiles (
+          id VARCHAR(50) PRIMARY KEY,
+          org_id VARCHAR(50) NOT NULL,
+          username VARCHAR(100) NOT NULL,
+          display_name VARCHAR(255),
+          email VARCHAR(255),
+          avatar_url TEXT,
+          metadata JSONB DEFAULT '{}',
+          total_sessions INTEGER DEFAULT 0,
+          total_messages INTEGER DEFAULT 0,
+          avg_valence DECIMAL(5,4) DEFAULT 0.5,
+          avg_arousal DECIMAL(5,4) DEFAULT 0.5,
+          dominant_emotion VARCHAR(50) DEFAULT 'neutral',
+          emotion_history JSONB DEFAULT '[]',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(org_id, username)
+        )
+      `);
+      logs.push('✅ profiles table created/verified');
+    } catch (e) {
+      logs.push(`⚠️ profiles table: ${e.message}`);
+    }
+    
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS sessions (
+          id VARCHAR(50) PRIMARY KEY,
+          org_id VARCHAR(50) NOT NULL,
+          profile_id VARCHAR(50) NOT NULL,
+          status VARCHAR(20) DEFAULT 'active',
+          started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          ended_at TIMESTAMP,
+          duration_seconds INTEGER,
+          message_count INTEGER DEFAULT 0,
+          overall_mood VARCHAR(50),
+          mood_confidence DECIMAL(5,4),
+          emotion_breakdown JSONB DEFAULT '{}',
+          avg_valence DECIMAL(5,4),
+          avg_arousal DECIMAL(5,4),
+          avg_dominance DECIMAL(5,4),
+          sentiment_trend VARCHAR(20),
+          metadata JSONB DEFAULT '{}',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      logs.push('✅ sessions table created/verified');
+    } catch (e) {
+      logs.push(`⚠️ sessions table: ${e.message}`);
+    }
+    
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS session_messages (
+          id VARCHAR(50) PRIMARY KEY,
+          session_id VARCHAR(50) NOT NULL,
+          message_type VARCHAR(20) NOT NULL,
+          content TEXT,
+          audio_url TEXT,
+          transcription TEXT,
+          overall_emotion VARCHAR(50),
+          confidence DECIMAL(5,4),
+          emotions JSONB,
+          vad JSONB,
+          sentiment JSONB,
+          word_count INTEGER,
+          analyzed_words INTEGER,
+          processing_time_ms INTEGER,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      logs.push('✅ session_messages table created/verified');
+    } catch (e) {
+      logs.push(`⚠️ session_messages table: ${e.message}`);
+    }
     
     // Create indexes
     const createIndexes = `
