@@ -1132,11 +1132,11 @@ app.post('/v1/sessions/:sessionId/messages', validateApiKey, async (req, res) =>
   }
 });
 
-// Add audio message to session (with transcription provided by client)
+// Add audio message to session - transcribes audio using Whisper, then analyzes
 app.post('/v1/sessions/:sessionId/audio', validateApiKey, upload.single('audio'), async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { transcription } = req.body; // Client can send transcription from browser Speech API
+    let { transcription } = req.body; // Can optionally provide transcription
     
     // Verify session exists and is active
     const sessionCheck = await sessionPool.query(
@@ -1160,12 +1160,55 @@ app.post('/v1/sessions/:sessionId/audio', validateApiKey, upload.single('audio')
       });
     }
     
-    // Clean up audio file if provided (we use client-side transcription)
+    const startTime = Date.now();
+    
+    // If audio file provided and no transcription, use Whisper to transcribe
+    if (req.file && !transcription) {
+      const openaiKey = process.env.OPENAI_API_KEY;
+      
+      if (openaiKey) {
+        try {
+          // Use OpenAI Whisper API for transcription
+          const FormData = require('form-data');
+          const formData = new FormData();
+          formData.append('file', fs.createReadStream(req.file.path), {
+            filename: 'audio.webm',
+            contentType: req.file.mimetype || 'audio/webm'
+          });
+          formData.append('model', 'whisper-1');
+          formData.append('language', 'en');
+          
+          const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${openaiKey}`,
+              ...formData.getHeaders()
+            },
+            body: formData
+          });
+          
+          if (whisperResponse.ok) {
+            const whisperResult = await whisperResponse.json();
+            transcription = whisperResult.text;
+            console.log('Whisper transcription:', transcription);
+          } else {
+            const errorText = await whisperResponse.text();
+            console.error('Whisper API error:', errorText);
+          }
+        } catch (whisperError) {
+          console.error('Whisper transcription failed:', whisperError.message);
+        }
+      } else {
+        console.warn('No OPENAI_API_KEY set - cannot transcribe audio');
+      }
+    }
+    
+    // Clean up audio file
     if (req.file) {
       try { fs.unlinkSync(req.file.path); } catch {}
     }
     
-    // If transcription provided, analyze it
+    // Analyze the transcription
     let emotionResult = {
       overall_emotion: 'neutral',
       confidence: 0.125,
@@ -1177,10 +1220,11 @@ app.post('/v1/sessions/:sessionId/audio', validateApiKey, upload.single('audio')
     };
     
     if (transcription && transcription.trim()) {
-      const startTime = Date.now();
       emotionResult = await emotionEngine.analyzeText(transcription);
-      emotionResult.processing_time_ms = Date.now() - startTime;
     }
+    
+    emotionResult.processing_time_ms = Date.now() - startTime;
+    emotionResult.transcription = transcription || '';
     
     // Create message
     const messageId = generateId('msg');
@@ -1194,7 +1238,7 @@ app.post('/v1/sessions/:sessionId/audio', validateApiKey, upload.single('audio')
       RETURNING *
     `, [
       messageId, sessionId,
-      transcription || '[Audio - no transcription]',
+      transcription || '[Audio - transcription failed]',
       emotionResult.overall_emotion,
       emotionResult.confidence,
       JSON.stringify(emotionResult.emotions),
@@ -1214,6 +1258,7 @@ app.post('/v1/sessions/:sessionId/audio', validateApiKey, upload.single('audio')
     res.json({
       success: true,
       message: messageResult.rows[0],
+      transcription: transcription || null,
       analysis: emotionResult
     });
     
