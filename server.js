@@ -612,7 +612,7 @@ app.get('/setup-database', async (req, res) => {
 // Create or get organization
 app.post('/v1/orgs', validateApiKey, async (req, res) => {
   try {
-    const { name, slug } = req.body;
+    const { id: providedId, name, slug } = req.body;
     
     if (!name || !slug) {
       return res.status(400).json({
@@ -621,27 +621,36 @@ app.post('/v1/orgs', validateApiKey, async (req, res) => {
       });
     }
     
-    const orgId = generateId('org');
+    // Use provided ID (from dashboard) or generate new one
+    const orgId = providedId || generateId('org');
     const apiKeyHash = crypto.createHash('sha256').update(req.apiKey).digest('hex');
     
-    // Try to get existing org for this API key, or create new one
+    // Check if org already exists by ID or by API key
     const existingOrg = await sessionPool.query(
-      'SELECT * FROM organizations WHERE api_key_hash = $1',
-      [apiKeyHash]
+      'SELECT * FROM organizations WHERE id = $1 OR api_key_hash = $2',
+      [orgId, apiKeyHash]
     );
     
     if (existingOrg.rows.length > 0) {
+      // Update org info if it exists
+      const updateResult = await sessionPool.query(`
+        UPDATE organizations 
+        SET name = $2, api_key_hash = $3, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING *
+      `, [existingOrg.rows[0].id, name, apiKeyHash]);
+      
       return res.json({
         success: true,
-        organization: existingOrg.rows[0],
-        message: 'Organization already exists for this API key'
+        organization: updateResult.rows[0] || existingOrg.rows[0],
+        message: 'Organization already exists'
       });
     }
     
     const result = await sessionPool.query(`
       INSERT INTO organizations (id, name, slug, api_key_hash)
       VALUES ($1, $2, $3, $4)
-      ON CONFLICT (slug) DO UPDATE SET name = $2, updated_at = CURRENT_TIMESTAMP
+      ON CONFLICT (slug) DO UPDATE SET name = $2, api_key_hash = $4, updated_at = CURRENT_TIMESTAMP
       RETURNING *
     `, [orgId, name, slug, apiKeyHash]);
     
