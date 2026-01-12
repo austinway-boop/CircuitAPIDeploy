@@ -811,19 +811,13 @@ app.post('/v1/profiles', validateApiKey, async (req, res) => {
   }
 });
 
-// Get profile by ID
+// Get profile by ID with full emotion statistics
 app.get('/v1/profiles/:profileId', validateApiKey, async (req, res) => {
   try {
     const { profileId } = req.params;
     
     const result = await sessionPool.query(`
-      SELECT p.*, 
-        (SELECT COUNT(*) FROM sessions WHERE profile_id = p.id) as session_count,
-        (SELECT COUNT(*) FROM session_messages sm 
-         JOIN sessions s ON sm.session_id = s.id 
-         WHERE s.profile_id = p.id) as message_count
-      FROM profiles p
-      WHERE p.id = $1
+      SELECT p.* FROM profiles p WHERE p.id = $1
     `, [profileId]);
     
     if (result.rows.length === 0) {
@@ -833,25 +827,79 @@ app.get('/v1/profiles/:profileId', validateApiKey, async (req, res) => {
       });
     }
     
-    // Get recent sessions
+    // Get all sessions for this profile
     const sessions = await sessionPool.query(`
-      SELECT id, status, started_at, ended_at, overall_mood, message_count
+      SELECT id, status, started_at, ended_at, overall_mood, mood_confidence,
+             message_count, avg_valence, avg_arousal, sentiment_trend, duration_seconds,
+             emotion_breakdown
       FROM sessions
       WHERE profile_id = $1
       ORDER BY started_at DESC
-      LIMIT 10
+    `, [profileId]);
+    
+    // Calculate emotion statistics across all sessions
+    const emotionCounts = {};
+    let totalSessions = 0;
+    let totalValence = 0;
+    let totalArousal = 0;
+    let validValenceSessions = 0;
+    
+    for (const session of sessions.rows) {
+      if (session.status === 'ended' && session.overall_mood) {
+        totalSessions++;
+        emotionCounts[session.overall_mood] = (emotionCounts[session.overall_mood] || 0) + 1;
+        
+        if (session.avg_valence != null) {
+          totalValence += parseFloat(session.avg_valence);
+          totalArousal += parseFloat(session.avg_arousal || 0.5);
+          validValenceSessions++;
+        }
+      }
+    }
+    
+    // Calculate emotion percentages
+    const emotionPercentages = {};
+    for (const [emotion, count] of Object.entries(emotionCounts)) {
+      emotionPercentages[emotion] = totalSessions > 0 ? Math.round((count / totalSessions) * 100) : 0;
+    }
+    
+    // Find dominant emotion
+    const dominantEmotion = Object.entries(emotionCounts)
+      .sort(([,a], [,b]) => b - a)[0];
+    
+    // Get recent messages for context
+    const recentMessages = await sessionPool.query(`
+      SELECT sm.content, sm.overall_emotion, sm.confidence, sm.created_at, s.id as session_id
+      FROM session_messages sm
+      JOIN sessions s ON sm.session_id = s.id
+      WHERE s.profile_id = $1
+      ORDER BY sm.created_at DESC
+      LIMIT 20
     `, [profileId]);
     
     res.json({
       success: true,
       profile: result.rows[0],
-      recent_sessions: sessions.rows
+      sessions: sessions.rows,
+      emotion_stats: {
+        total_sessions: totalSessions,
+        dominant_emotion: dominantEmotion ? dominantEmotion[0] : 'neutral',
+        dominant_emotion_percentage: dominantEmotion && totalSessions > 0 
+          ? Math.round((dominantEmotion[1] / totalSessions) * 100) 
+          : 0,
+        emotion_breakdown: emotionPercentages,
+        avg_valence: validValenceSessions > 0 ? totalValence / validValenceSessions : 0.5,
+        avg_arousal: validValenceSessions > 0 ? totalArousal / validValenceSessions : 0.5,
+        total_messages: sessions.rows.reduce((sum, s) => sum + (s.message_count || 0), 0)
+      },
+      recent_messages: recentMessages.rows
     });
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to get profile'
+      error: 'Failed to get profile',
+      details: error.message
     });
   }
 });
@@ -1084,17 +1132,11 @@ app.post('/v1/sessions/:sessionId/messages', validateApiKey, async (req, res) =>
   }
 });
 
-// Add audio message to session
+// Add audio message to session (with transcription provided by client)
 app.post('/v1/sessions/:sessionId/audio', validateApiKey, upload.single('audio'), async (req, res) => {
   try {
     const { sessionId } = req.params;
-    
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: 'No audio file provided'
-      });
-    }
+    const { transcription } = req.body; // Client can send transcription from browser Speech API
     
     // Verify session exists and is active
     const sessionCheck = await sessionPool.query(
@@ -1103,8 +1145,7 @@ app.post('/v1/sessions/:sessionId/audio', validateApiKey, upload.single('audio')
     );
     
     if (sessionCheck.rows.length === 0) {
-      // Clean up temp file
-      try { fs.unlinkSync(req.file.path); } catch {}
+      if (req.file) try { fs.unlinkSync(req.file.path); } catch {}
       return res.status(404).json({
         success: false,
         error: 'Session not found'
@@ -1112,47 +1153,56 @@ app.post('/v1/sessions/:sessionId/audio', validateApiKey, upload.single('audio')
     }
     
     if (sessionCheck.rows[0].status !== 'active') {
-      try { fs.unlinkSync(req.file.path); } catch {}
+      if (req.file) try { fs.unlinkSync(req.file.path); } catch {}
       return res.status(400).json({
         success: false,
         error: 'Session is not active'
       });
     }
     
-    const audioPath = req.file.path;
-    const retryMode = req.body.retry_mode || 'normal';
+    // Clean up audio file if provided (we use client-side transcription)
+    if (req.file) {
+      try { fs.unlinkSync(req.file.path); } catch {}
+    }
     
-    // Call Python audio analyzer
-    const { stdout } = await execAsync(
-      `python3 api/audio_analyzer.py "${audioPath}" --retry-mode ${retryMode}`
-    );
+    // If transcription provided, analyze it
+    let emotionResult = {
+      overall_emotion: 'neutral',
+      confidence: 0.125,
+      emotions: { joy: 0.125, trust: 0.125, anticipation: 0.125, surprise: 0.125, anger: 0.125, fear: 0.125, sadness: 0.125, disgust: 0.125 },
+      vad: { valence: 0.5, arousal: 0.5, dominance: 0.5 },
+      sentiment: { polarity: 'neutral', strength: 0.5 },
+      word_count: 0,
+      analyzed_words: 0
+    };
     
-    // Clean up temp file
-    fs.unlinkSync(audioPath);
+    if (transcription && transcription.trim()) {
+      const startTime = Date.now();
+      emotionResult = await emotionEngine.analyzeText(transcription);
+      emotionResult.processing_time_ms = Date.now() - startTime;
+    }
     
-    const audioResult = JSON.parse(stdout);
-    
-    // Create message with audio results
+    // Create message
     const messageId = generateId('msg');
     
     const messageResult = await sessionPool.query(`
       INSERT INTO session_messages (
-        id, session_id, message_type, transcription,
+        id, session_id, message_type, content, transcription,
         overall_emotion, confidence, emotions, vad, sentiment,
         word_count, analyzed_words, processing_time_ms
-      ) VALUES ($1, $2, 'audio', $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ) VALUES ($1, $2, 'audio', $3, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
     `, [
       messageId, sessionId,
-      audioResult.result?.transcription || '',
-      audioResult.result?.overall_emotion || 'neutral',
-      audioResult.result?.confidence || 0.125,
-      JSON.stringify(audioResult.result?.emotions || {}),
-      JSON.stringify(audioResult.result?.vad || {}),
-      JSON.stringify(audioResult.result?.sentiment || {}),
-      audioResult.result?.word_count || 0,
-      audioResult.result?.analyzed_words || 0,
-      audioResult.result?.processing_time_ms || 0
+      transcription || '[Audio - no transcription]',
+      emotionResult.overall_emotion,
+      emotionResult.confidence,
+      JSON.stringify(emotionResult.emotions),
+      JSON.stringify(emotionResult.vad),
+      JSON.stringify(emotionResult.sentiment),
+      emotionResult.word_count || 0,
+      emotionResult.analyzed_words || 0,
+      emotionResult.processing_time_ms || 0
     ]);
     
     // Update session message count
@@ -1164,20 +1214,20 @@ app.post('/v1/sessions/:sessionId/audio', validateApiKey, upload.single('audio')
     res.json({
       success: true,
       message: messageResult.rows[0],
-      analysis: audioResult.result
+      analysis: emotionResult
     });
     
   } catch (error) {
     console.error('Add audio message error:', error);
     
-    // Clean up on error
     if (req.file) {
       try { fs.unlinkSync(req.file.path); } catch {}
     }
     
     res.status(500).json({
       success: false,
-      error: 'Failed to process audio message'
+      error: 'Failed to process audio message',
+      details: error.message
     });
   }
 });
