@@ -662,7 +662,8 @@ app.post('/v1/orgs', validateApiKey, async (req, res) => {
     console.error('Create org error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to create organization'
+      error: 'Failed to create organization',
+      details: error.message
     });
   }
 });
@@ -781,7 +782,8 @@ app.post('/v1/profiles', validateApiKey, async (req, res) => {
     console.error('Create profile error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to create profile'
+      error: 'Failed to create profile',
+      details: error.message
     });
   }
 });
