@@ -1162,44 +1162,51 @@ app.post('/v1/sessions/:sessionId/audio', validateApiKey, upload.single('audio')
     
     const startTime = Date.now();
     
-    // If audio file provided and no transcription, use Whisper to transcribe
+    // If audio file provided and no transcription, use free Hugging Face Whisper
     if (req.file && !transcription) {
-      const openaiKey = process.env.OPENAI_API_KEY;
-      
-      if (openaiKey) {
-        try {
-          // Use OpenAI Whisper API for transcription
-          const FormData = require('form-data');
-          const formData = new FormData();
-          formData.append('file', fs.createReadStream(req.file.path), {
-            filename: 'audio.webm',
-            contentType: req.file.mimetype || 'audio/webm'
-          });
-          formData.append('model', 'whisper-1');
-          formData.append('language', 'en');
-          
-          const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      try {
+        // Read audio file as buffer
+        const audioBuffer = fs.readFileSync(req.file.path);
+        
+        // Use Hugging Face's free Whisper inference API
+        const hfResponse = await fetch(
+          'https://api-inference.huggingface.co/models/openai/whisper-small',
+          {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${openaiKey}`,
-              ...formData.getHeaders()
+              'Content-Type': 'audio/webm'
             },
-            body: formData
-          });
-          
-          if (whisperResponse.ok) {
-            const whisperResult = await whisperResponse.json();
-            transcription = whisperResult.text;
-            console.log('Whisper transcription:', transcription);
-          } else {
-            const errorText = await whisperResponse.text();
-            console.error('Whisper API error:', errorText);
+            body: audioBuffer
           }
-        } catch (whisperError) {
-          console.error('Whisper transcription failed:', whisperError.message);
+        );
+        
+        if (hfResponse.ok) {
+          const result = await hfResponse.json();
+          transcription = result.text || '';
+          console.log('Whisper transcription:', transcription);
+        } else {
+          // If model is loading, try whisper-tiny as fallback
+          const fallbackResponse = await fetch(
+            'https://api-inference.huggingface.co/models/openai/whisper-tiny',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'audio/webm'
+              },
+              body: audioBuffer
+            }
+          );
+          
+          if (fallbackResponse.ok) {
+            const result = await fallbackResponse.json();
+            transcription = result.text || '';
+            console.log('Whisper-tiny transcription:', transcription);
+          } else {
+            console.error('HF Whisper error:', await fallbackResponse.text());
+          }
         }
-      } else {
-        console.warn('No OPENAI_API_KEY set - cannot transcribe audio');
+      } catch (whisperError) {
+        console.error('Whisper transcription failed:', whisperError.message);
       }
     }
     
